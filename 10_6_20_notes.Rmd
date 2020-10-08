@@ -1,0 +1,90 @@
+---
+title: "Class Notes - Day 1"
+author: "Charlie Hall"
+date: "10/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# 10/6/20 day 1 class notes
+library(tidyverse)
+library(knitr)
+(state <- read_csv("~/Downloads/state.csv", col_names = TRUE))
+
+kable( state[1:5,] , caption = "Murder Rate by States (per 100,000")
+```
+
+### Mean: avg with equal weight
+$$\overline{X} = \frac{ \sum_{i = 1}^n x_i }{n}$$
+
+$\mu$ is used to speak of pop. mean. We use $\overline{x}$ for sample mean.
+
+$\sigma$ = pop. standard dev.
+$s$ = sample st. dev.
+
+*We tend to use Greek letters when ref. to population
+
+```{r}
+mean( state$Population )
+mean( state[['Population']])
+```
+
+```{r}
+totalPop <- sum( state$Population )
+totalPop/50
+```
+
+### Weighted Mean: avg with different weights
+$$\overline{X}_w = \frac{ \sum_{i = 1}^n w_i x_i }{ \sum_{i = 1}^n w_i}$$
+
+```{r}
+mean( state$Murder.Rate )
+weighted.mean( state$Murder.Rate, w = state$Population )
+```
+
+### Estimates of Location (Mostly Center)
+**Median**: most typical value. 50% of obs above and 50% of obs below
+$$x_1, x_2, x_3, \cdots , x_{n-2}, x_{n-1}, x_n$$
+
+If n is odd,
+$$\text{Median}(x) = x_{(n+1)/2}$$
+
+If n is even,
+$$\text{Median}(x) = \frac{ x_{n/2} + x_{n/2+1} }{2}$$
+
+```{r message = FALSE}
+median( state$Murder.Rate )
+
+library( matrixStats )
+weightedMedian( state$Murder.Rate, w = state$Population )
+```
+
+**When mean and median are very similar or the same, your distribution is symmetric.**
+
+```{r}
+state %>% ggplot() +
+  geom_histogram(aes( Murder.Rate ), bins = 15)
+state %>% arrange(desc(Murder.Rate))
+```
+
+**Percentile**: data value with P percent of obs. lies below.
+```{r}
+quantile( state$Murder.Rate, c( 0.1,0.25,0.5,0.98 ) )
+```
+
+Median is robust (*not sensitive to extreme values*). Mean is very susceptible to extreme values.
+
+Median shows a better "typical" value. 
+
+**Trimmed Mean**: avg without p extreme values on both sides.
+$$\overline{X}_{trm} = \frac{ \sum_{i = p + 1}^{n-p } x_i }{n-2p}$$
+
+```{r}
+mean( state$Murder.Rate, trim = 2/50)
+```
+
+**Outliers**: data values which are very different from most of the data
