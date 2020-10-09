@@ -1,0 +1,182 @@
+---
+title: "Class Notes - Day 2"
+author: "Charlie Hall"
+date: "10/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Definition of Probability
+**Subj. Prop**: educated guess
+
+- economist predicts a 10% chance that s&p500 index will go up next yr
+
+**Exp. Prob**: empirical, uses the outcomes obtained by repeatedly performing experiment
+
+- collect data, record, evaluate data to determine probability of event
+
+**Classical Prob**: theoretical, can be calculated when all outcomes are equally likely
+
+- prob of selecting king of diamonds from deck of standard playing cards is 1/52
+
+**Probability is always between 0 and 1**
+
+### Estimates of Variability (spread)
+```{r}
+library(tidyverse); library(ggplot2)
+head(iris)
+```
+
+```{r}
+iris %>% ggplot( aes(x = Sepal.Length)) +
+  geom_histogram(bins = 15, fill = 'red', alpha = .3)
+```
+
+```{r}
+iris %>% ggplot(aes(x = Sepal.Length)) +
+  geom_histogram(bins = 15, fill = 'red', alpha = .3) +
+  facet_wrap(~ Species)
+```
+
+**Deviations**: (errors, residuals) difference between each observed value & estimate of location ($\overline{x}$ or $\mu$). 
+
+Formula = ($x_{i}-\overline{x}$)
+
+```{r}
+( m_S.L <- mean(iris$Sepal.Length))
+```
+
+```{r}
+iris %>% select(Sepal.Length) %>%
+  mutate(Deviation = Sepal.Length - m_S.L)
+
+sum(iris$Deviation)
+```
+
+**Variance**: truly useful numerical measure of variability. Mean squared error. Sum of squared deviations from the mean divided by ($n-1$) or $N$. 
+
+Population Variance - divide by sample size
+
+Sample Variance - divide by sample size minus 1
+
+Notice all Greek symbols in stats are fixed (though unknown to us)
+
+Why $(n-1)$ in $s^2$:
+
+- sample variance will vary sample by sample
+- $s^2$: one single observed sample var.
+- $S^2$: random variable to represent all possible sample var. with fixed $n$. 
+- unbiased estimate: we want to make sure the expected value of this random variable is the same as $\sigma^2$.
+
+$$E(S^2) = \sigma^2$$
+
+```{r}
+var(iris$Sepal.Length)
+```
+
+```{r}
+library( sjstats )
+var_pop(iris$Sepal.Length)
+```
+
+**Standard Deviation**: sqrt(s^2) = s
+
+Variance and std. deviation are, by definition, *always positive values*. 
+
+```{r}
+sd( iris$Sepal.Length )
+
+sd_pop( iris$Sepal.Length )
+```
+
+**Mean Absolute Deviation from the Mean**: Manhattan Norm, L1 Norm. mean of the absolute values of the deviations from the mean
+
+**Median Absolute Deviation from the Median**: (more popular mad). the median of absolute values of the deviations from the median
+
+- Median-MAD is robust to extreme values
+- Mean-MAD is sensitive to extreme values
+
+**Range**: max - min
+
+**IQR**: Inter-Quartile Range. Q3 - Q1. Very robust measure for spread. Where the middle 50% of the dataset falls
+
+**5 Number Summary**: min, Q1, Median, Q3, max
+
+```{r}
+mad( iris$Sepal.Length )
+IQR( iris$Sepal.Length )
+fivenum( iris$Sepal.Length )
+```
+
+### Exploring the Data Description
+
+**Box Plot** (Box and Whiskers)
+
+- use 5 number summary,
+- 1.5 times IQR can be used to determine possible outliers
+```{r}
+boxplot( iris$Sepal.Length, horizontal = TRUE)
+
+iris %>% ggplot() +
+  geom_boxplot(aes(x = Sepal.Length))
+
+iris %>% ggplot() +
+  geom_boxplot(aes(x = Sepal.Length, y = Species))
+```
+
+```{r}
+state <- read_csv("~/Downloads/state.csv", col_names = TRUE)
+boxplot( state$Population, horizontal = TRUE)
+
+state %>% ggplot() +
+  geom_boxplot( aes(x = Population))
+```
+
+```{r}
+breaks <- seq( from = min( state$Population ),
+               to = max( state$Population ), length = 11)
+
+pop_freq <- cut(state$ Population, breaks = breaks, right = TRUE, include.lowest = TRUE)
+
+table(pop_freq)
+```
+
+**Histogram**: plot by freq. table
+```{r}
+hist(state$Population, breaks = breaks)
+
+state %>% ggplot(aes(x = Population)) +
+  geom_histogram( fill = 'red', alpha = .3, breaks = breaks)
+```
+
+**Density Plot**: smoothed version of the histogram. Many options possible for kernel density function
+```{r}
+state %>% ggplot( aes( x = Population )) +
+  geom_histogram( aes(y =..density..),
+                  fill = 'red', alpha = .3, bins = 15) +
+  geom_density(color = 'blue' , size = 2)
+```
+
+### Exploring Categorical Data
+**Mode**: most common value or category in a dataset (can also mean number of 'peaks' in histogram, etc. when applied to numerical variable)
+
+**Expected Value**: mean value of a randomly varying variable with assigned probabilities
+
+**Bar Chart**: Equivalent to histogram for categorical variables
+```{r}
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut))
+```
+
+**Pie Chart**: not a good idea, most of the time. 
+```{r}
+tmp <- diamonds %>% group_by( cut ) %>% summarize(n = n() )
+pie(tmp$n)
+
+ggplot(data = diamonds) +
+  geom_bar(mapping = aes(x = cut, fill = cut)) +
+  coord_polar()
+```
