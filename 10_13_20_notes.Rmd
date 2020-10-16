@@ -1,0 +1,192 @@
+---
+title: "Class Notes - Day 3"
+author: "Charlie Hall"
+date: "10/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+library(ggcorrplot)
+library(knitr)
+library(hexbin)
+library(descr)
+```
+
+### Correlation
+
+**Covariance**: a measure of the joint variability of two numerical variables
+
+**Population Covariance**: for discrete and continuous distributions, respectively
+
+*no function for the population covariance*
+```{r}
+cov(iris$Sepal.Length[iris$Species=="setosa"], iris$Sepal.Width[iris$Species=="setosa"])
+```
+
+- Cannot compare the strength of association between two sets of data with their covariances. (.099 does not really mean anything other than that it's positive)
+- magnitudes or units!
+- Thus, only signs are important in comparing the strength of association between two sets of data, unless they save the same sets of units. 
+
+**Correlation**: a measure of the joint variability of two numerical variables when divided by standard deviations (unitless, -1 <= $\rho$ <= 1)
+
+*no function for the population correlation*
+```{r}
+cor( iris$Sepal.Length[iris$Species == 'setosa'], iris$Sepal.Width[iris$Species == 'setosa'])
+```
+
+```{r}
+iris %>% ggplot( aes(x = Sepal.Length, y = Sepal.Width, color = Species) ) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE)
+```
+
+**Matrix of Scatter Plots**: if we have more than 2 numerical variables
+```{r, message = FALSE}
+mtcars %>% ggpairs()
+```
+
+```{r}
+corr_tmp <- cor( mtcars )
+corr_tmp %>% ggcorrplot( method = 'circle', hc.order = TRUE,
+                         type = 'lower', outline.col = 'white')
+```
+
+```{r}
+corr_tmp
+```
+
+**Linear** correlation!
+
+- correlation zero doesn't mean no association
+  - non-linear association may exist
+- it measures linear correlation only
+
+### Exploring 2 or more Variables
+
+Tax-assessed values for residential properties in King County, Washington:
+```{r, message - FALSE}
+kc_tax <- read_csv('~/Downloads/kc_tax.csv')
+kable( kc_tax[1:5, ])
+```
+
+Exclude very expensive homes, very small ones, or very large ones:
+```{r}
+kc_tax0 <- subset(kc_tax, TaxAssessedValue < 750000 & SqFtTotLiving > 100 & SqFtTotLiving < 3500)
+nrow(kc_tax0)
+```
+
+For a very large dataset, we may use **Contour Plot**:
+```{r}
+ggplot(kc_tax0, aes(SqFtTotLiving, TaxAssessedValue)) +
+  theme_bw() +
+  geom_point(alpha = .1) +
+  geom_density2d(color = 'white') +
+  labs(x = 'Finished Square Feet', y = 'Tax-Assessed Value')
+```
+
+For a very large dataset, we may use **Hexagonal Binning Plot**:
+```{r}
+ggplot(kc_tax0, aes(SqFtTotLiving, TaxAssessedValue)) +
+  stat_binhex(color = 'white') + theme_bw() +
+  scale_fill_gradient(low = 'white', high = 'black') +
+  labs( x = 'Finished Square Feet', y = 'Tax-Assessed Value' )
+```
+
+Grade of a personal loan vs. the outcome of that loan
+```{r}
+lc_loans <- read_csv("~/Downloads/lc_loans.csv")
+head(lc_loans)
+
+unique(lc_loans$status); unique(lc_loans$grade)
+```
+
+For two *categorical* variables, we use **Contingency Table**:
+```{r}
+CrossTable(lc_loans$grade, lc_loans$status,
+           prop.c = FALSE, prop.chisq = FALSE, prop.t = FALSE)
+```
+
+For categorical vs. numerical, we use **Boxplots**:
+```{r}
+diamonds %>% ggplot( aes(x = cut, y = price)) +
+  geom_boxplot()
+```
+
+For categorical vs. numerical, we may use enhanced boxplot with density estimates (**Violin Plot**):
+```{r}
+diamonds %>% ggplot( aes( cut, price )) +
+  geom_violin() 
+```
+
+`facet_wrap` is useful for visualizing multiple variables:
+```{r}
+ggplot(subset(kc_tax0, ZipCode %in% c(98188,98105,98108,98126)),
+       aes(SqFtTotLiving,TaxAssessedValue)) +
+  stat_binhex(color ='white') +
+  theme_bw() +
+  scale_fill_gradient(low = 'white', high = 'blue') +
+  labs(x = 'Finished Sq Feet', y = 'Tax-Assessed Value') +
+  facet_wrap('ZipCode')
+```
+
+### Random Sampling and Sampling Bias
+
+Population vs. Sample
+
+- Population - normally theoretical, difficult to investigate due to limited resources
+- Sample - we typically calculate statistics on a sample, using results to make reasonable inference upon population characteristics
+
+Bias vs. Variance
+
+- unbiased estimator - on average, estimate produces same value with population parameter
+- trade-off between bias and variance
+
+**Random Sampling** to avoid bias - crucial
+
+- simple random sampling - can be difficult when it comes to procedure, resources
+- stratified random sampling - randomly select from each strata
+  - divide population into strata, run simple random sampling for each group 
+
+Random sampling is *very* important even in the era of Big Data
+
+- avoid bias!
+- data quality is more important than data quantity
+
+- Population Mean $\mu$
+- Population Standard Deviation $\sigma$
+- Sample Mean $\overline{x}$
+- Sample Standard Deviation $s$
+
+Why is $\overline{x}$ an unbiased estimator of the population mean $\mu$?
+
+- assume you have random sampling
+- on average, sample means will cancel out and center around pop. mean
+
+### Selection Bias
+
+**Selection Bias**: resulting from the way in which observations are selected (non-random sampling)
+
+**Data Snooping**: Extensive hunting through data in search of something interesting.
+
+- "if you torture your data long enough, sooner or later, it will confess"
+- cherry-picking research questions after the fact.
+
+**Vast Search Effect**: statistically significant observation occurs by chance because of sheer size of dataset.
+
+- 1/1024 chance that 10 coin tosses will land heads just by chance
+- ask 20,000 people to toss a coin 10 times
+
+*be careful about selection bias, data snooping, vast search effect / don't do these!*
+
+* more like an art than science when it comes to many real-world applications. "3 types of lies: lies, damned lies, and statistics" - people can use statistics to twist information if not cautious re: potential fallacies
+
+**Regression to the Mean**: 'going back' to the mean
+
+- rookies of the year, sophomore slump
+- extreme observations tend to be followed by more central ones
+- Francis Galton on genetic tendencies: extremely tall men tend to have shorter sons
+
+**Linear Regression**: linear relationship is estimated between predictor variables and an outcome variable
