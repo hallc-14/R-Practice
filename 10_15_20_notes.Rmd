@@ -1,0 +1,126 @@
+---
+title: "Class Notes - Day 4"
+author: "Charlie Hall"
+date: "10/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+library(ggcorrplot)
+library(knitr)
+library(hexbin)
+library(descr)
+```
+
+### Sampling Distribution of a Statistic
+
+**Sampling Distribution of the Sample Mean** - most common expression of sampling dist.
+
+- big population (ex. $\mu = 82.5$)
+- random samples (fixed sample size, $\overline{x}_{1} = 79.6$, $\overline{x}_{2} = 81$, etc.)
+- sampling distribution of sample means ($79.6, 81.0, 85.2, 80.5, 79.8, 88.3$)
+- avg. mean of sample means ($82.4$)
+
+can also have sampling distribution of sample variance, sample median, so on.
+
+**Sampling Dist**: frequency distribution or theoretical density curve of a sample stat over many samples with fixed sample size $n$.
+
+**Central Limit Theorem (CLT)**: the tendency of the sampling dist. of the sample mean ($\overline{X}$) to take on a normal dist. as sample size rises.
+
+**Standard Error**: variability (standard dev.) of a sample statistic over many samples 
+
+- *standard deviation of the sampling distribution*
+
+```{r}
+library(nycflights13)
+(dist_data <- flights %>% select(distance) %>%
+    filter(!is.na(distance)))
+```
+
+```{r}
+samp_mean_05 <- rep(0,1000)
+for( i in 1:1000 ){
+  samp_mean_05[i] <- mean( sample(dist_data$distance, 5 ))
+}
+hist(samp_mean_05, breaks = 15)
+
+samp_mean_tib <- tibble(samp_mean_05)
+ggplot(samp_mean_tib, aes(samp_mean_05)) +
+  geom_histogram(bins = 15, color = 'black')
+```
+
+Sampling with size 25 & 64
+```{r}
+samp_mean_25 <- rep(0, 1000)
+for(i in 1:1000){
+  samp_mean_25[i] <- mean( sample(dist_data$distance, 25 ) )
+}
+
+samp_mn_25 <- tibble(samp_mean_25)
+
+ggplot(samp_mn_25, aes(samp_mean_25)) +
+  geom_histogram(bins = 15, color = 'black')
+
+samp_mean_64 <- rep(0, 1000)
+for(i in 1:1000){
+  samp_mean_64[i] <- mean( sample(dist_data$distance, 64 ) )
+}
+
+samp_mn_64 <- tibble(samp_mean_64)
+
+ggplot(samp_mn_64, aes(samp_mean_64)) +
+  geom_histogram(bins = 15, color = 'black')
+
+ggplot(dist_data) +
+  geom_histogram(aes(distance), bins = 15)
+```
+
+**CLT** is not as important as it was (esp. in data sci).
+
+- if population is normal, then sampling dist is normal
+- if pop. is unknown/skewed, then sampling dist is close to normal when $n>25$.
+
+**Standard Error**: $\frac{s}{\sqrt{n}}$
+```{r}
+single_sample_64 <- sample( dist_data$distance, 64 )
+SE <- sd( single_sample_64 ) / sqrt( length( single_sample_64 ) ) 
+SE
+```
+
+**Normal Distribution**: very common in nature (e.g. measures on biological specimens, standardized tests, the sampling distribution of the sample means, etc.)
+
+Empirical rule: 1 standard dev. away from center covers about 68%. 2 sd's away covers about 95%. 3 sd's away covers 99.7%
+
+**Standard Normal Dist**: normal with $\mu = 0$ and $\sigma = 1$.
+
+$N(0,1)$
+
+Z-score (converts to standard normal dist. so we can compare on a fixed scale):
+$$z = \frac{x-\mu}{\sigma}$$
+
+**Example**:
+
+John's ACT score is 29.5
+
+Jane's SAT score is 1431
+
+ACT ~ N($\mu$ 20.8, $\sigma$ 5.8)
+
+SAT ~ N($\mu$ 1051, $\sigma$ 211)
+
+```{r}
+(SATN <- (29.5-20.8) / 5.8)
+
+(ACTN <- (1431 - 1051) / 211)
+```
+
+**QQ-Plot**: visually determine how close a sample is to a specified distribution - many cases, the normal dist.
+```{r}
+binom_sample <- rbinom( 100, 2500, 1/6)
+qqnorm( binom_sample )
+max(binom_sample)
+min(binom_sample)
+```
