@@ -1,0 +1,258 @@
+---
+title: "Class Notes - Day 6"
+author: "Charlie Hall"
+date: "10/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+### Various Distributions (cont'd)
+
+#### `R` prefixes for various probability functions:
+
+- `d_()`: returns `y` value of density function, aka - probability density function $f()$
+```{r}
+x <- ((-400):400)/100
+data_1 <- tibble(x, y = dt(x, df = 5))
+ggplot(data = data_1, aes(x,y)) +
+  geom_line(color = 'red', size = 2)
+```
+
+- `p_()`: return cumulative area of $f()$ from $-\infty$
+  - aka, cumulative density function $F()$
+```{r}
+pt(-1,df = 5)
+ggplot(data = data_1, aes(x,y)) + geom_line( color = 'blue', size = 2) +
+  geom_area(aes(y = ifelse(x>=-4 & x<=-1, y, 0)), fill = 'red')
+
+pt(999, df = 5)
+pt(0, df = 5)
+```
+
+- `q_()`: inverse function of `p_()`
+```{r}
+qt(.1816, df = 5) %>% round()
+ggplot(data = data_1, aes(x,y)) +geom_line( color = 'blue', size = 2) +
+  geom_area( aes(y = ifelse(x>=-4 & x <= -1, y, 0)), fill = 'red')
+```
+
+- `r_()`: randomly generate $n$ observations of $x$ from given distribution
+```{r}
+rt(10, df = 5)
+```
+
+Probability Functions:
+
+- `dt()`, `pt()`, `qt()`, `rt()`
+- `_binom()`
+- `_chisq()`
+- `_f()`
+- `_pois()`
+- `_exp`
+- `weibull` (pron. vay-bull)
+
+**QQ Plot**: `qqnorm()` and `qqline()` use normal distribution
+```{r}
+data_2 <- tibble(x = rt(1000, df = 5))
+qqnorm( data_2$x )
+qqline( data_2$x, col = 'blue', lwd = 3 )
+```
+
+Theoretical normal dist used if not specified
+```{r}
+data_2 %>% ggplot( aes(sample = x)) +
+  geom_qq() + geom_qq_line( color = 'blue', size = 1 )
+```
+
+Any theoretical dist can be compared as follows:
+```{r}
+params <- list(df = 5)
+data_2 %>% ggplot(aes(sample = x)) + 
+  geom_qq(distribution = qt, dparams = params$df) +
+  geom_qq_line(distribution = qt, dparams = params$df, color ='blue', size = 1)
+```
+
+Parameters may be estimated as follows:
+```{r, warning = FALSE}
+library(MASS)
+(params <- as.list(fitdistr(data_2$x, 't')$estimate))
+
+# then we can use qq plot with estimated parameters
+data_2 %>% ggplot(aes(sample = x)) + 
+  geom_qq(distribution = qt, dparams = params$df) +
+  geom_qq_line(distribution = qt, dparams = params$df, color ='blue', size = 1)
+```
+
+**Binomial Distribution**: number of occurrences with probability $p$ and `size` trials.
+
+- `dbinom()`, `pbinom()`, `qbinom()`, `rbinom()`
+- 2 parameters: size (number of trials), $p$ success prob
+- eg. probability of getting face value six exactly 2 times, when we throw a die 10 times:
+```{r}
+dbinom(x = 2, size = 10, prob = 1/6)
+```
+
+```{r}
+pbinom(q = 2, size = 10, prob = 1/6)
+```
+
+randomly generate $n = 4$ observations of number of face value six when you throw a die 10 times
+```{r}
+rbinom(n = 4, size = 10, prob = 1/6)
+```
+
+**Chi Squared Distribution**: dist - $Z^{2}$ while $Z = N(0,1)$
+
+- `_chisq()`
+- only one parameter: df
+```{r}
+x <- (0:1000)/100
+data_3 <- tibble(x, y = dchisq(x, df=3))
+ggplot(data = data_3, aes(x,y)) +
+  geom_line(color = 'red', size = 2)
+```
+
+```{r}
+pchisq(3, df = 3)
+
+ggplot(data = data_3, aes(x,y)) + geom_line(color = 'blue', size = 2) +
+  geom_area(aes(y = ifelse(x>= 0 & x <=3, y, 0)), fill = 'red')
+```
+
+```{r}
+qchisq(0.6083748, df = 3)
+```
+
+```{r}
+rchisq(10, df = 3)
+```
+
+**$F$ distribution**: ratio of $\chi^{2}$ distributions.
+
+- `df()`, `pf()`, `qf()`, `rf()`
+- 2 parameters: `df1`, `df2`
+
+**Poisson Distribution**: number of occurrences in a given interval, length, etc.
+
+- `_pois()`
+- one parameter: $\lambda$
+- $\mu = \lambda$ and $\sigma^{2} = \lambda$ (variance and mean are the same)
+
+**Exponential Distribution**: waiting time until the first occurrence.
+
+- `dexp()`, `pexp()`, `qexp()`, `rexp()`
+- one parameter `rate`: $1/\theta)$ thus rate = .5 means $\theta = 2$
+- $\mu = \theta$ and $\sigma^{2} = \theta^{2}$
+```{r}
+set.seed(27101)
+# waiting time until 1st occurrence with avg. = 1/0.5 = 2
+rexp(3, rate = .5)
+```
+
+**Weibull Distribution**: failure time $W$ until shape occurrence assuming a constant failure rate 1/scale.
+
+- `_weibull()`
+- Swedish mathemetician Waloddi Weibull
+- two parameter shape and scale
+```{r}
+set.seed(20201022)
+# failure time until 4th occurrence
+# with a constant time per 4 failures being 50
+rweibull(3, shape = 4, scale = 50)
+```
+
+## Statistical Experiments and Significance Testing
+
+### A/B Testing
+
+Examples of A/B tests (fancy term in data sci, especially in a web context - marketing, ecommerce, etc)
+
+- testing two prices to determine which yields more net profit
+- testing two web headlines to determine which produces more clicks
+- testing two web ads to determine which generates more conversions
+- testing two soil treatments to determine which produces better seed germination
+- testing two therapies to determine which suppresses cancer more effectively
+
+Traditionally, this is referred to as *Randomized Comparative Experiments* in stats.
+
+- **Treatment**: something to which a subject is exposed in an experiment
+- **Treatment Group**: the group which receives a specific treatment in an experiment
+- **Control Group**: baseline group, which receives no treatment or a conventional treatment
+- **Random Assignment**: subject must be randomly assigned to one of 2 groups explained above
+  - by doing this, we can say that any any difference would be due to different treatments or by chance
+- **Placebo Effect**: human subject may feel better simply by attentions being paid by others
+- **Placedo**: thus, we need to administer fake effect (fake drug) if necessary
+- **Double Blind Test**: both subjects and facilitators do not know who gets what 
+
+A/B/C/D testing? Perfectly ok
+
+- Is this difference in outcome statistically significant?
+  - in stats, it's a very important question to be answered
+  - in marketing, eCommerce, etc., it's less important, as people want quick actionable solutions
+  
+- As for scientific and medical research involving human subjects, we need:
+  - participants' permissions
+  - approval by inst. review board
+  - exceptions like conventional edu. setting, consumer acceptance, public benefit, etc exist
+  
+### Hypothesis Tests (aka NHST)
+
+- very popular among traditional statistical research
+
+**Null Hypothesis Significance Tests (NHST)**
+
+**Significnace Tests**
+
+Main Idea: is this observed difference just a chance outcome or statistically meaningful?
+
+- assume there is no effect ($H_{0}$)
+- calculate the prob of getting as extreme outcomes as we observed in our sample data or more extreme ones ($p$-value)
+- compare this $p$-value with predetermined benchmark (eg. 10%, 5%, 1%, etc.)
+
+**$H_{0}$** (null hypothesis): there is no effect. Status quo. Nothing happened, treatment is not effective
+
+**$H_{a}$** (alt. hypothesis): the treatment is effective. Research question. Something researchers have in mind before seeing the data
+
+**$p$-value**: assuming there is no effect ($H_{0}$ is true), the probability of getting as extreme outcomes as we observed in our sample data or more extreme ones.
+
+**$a = 0.05$**: typical benchmark to determine rarity - level of significance
+
+**Conclusion**:
+
+- reject $H_{0}$
+- fail to reject $H_{0}$
+
+**Interpretation**:
+
+- evidence to support $H{0}$
+- no evidence to support $H{0}$
+
+**One-Way Test**: interested in one-directional comparison. Either less than or greater than
+
+**Two-Way Test**: when we are interested in 2-directional comparison - different from
+
+$H_{0}: \mu = 52000$ vs. $H_{a}: \mu > 52000$
+
+```{r}
+x <- c(58301, 66630, 54219, 49711, 52027, 60799,
+       59676, 72632, 72386, 53650, 73191, 56491,
+       63484, 77683, 75872, 75266, 56473, 66917,
+       68684, 44387, 59730, 54438, 65575, 49751,
+       41926, 72681, 64154, 68418, 48846, 67912)
+
+t.test( x, alternative = 'greater', mu = 52000 )
+```
+
+z.test vs. t.test - use z if we know the pop. standard dev. If unknown, use t.test. T.test is more realistic.
+
+$p$-value = 0.000004113 < 0.05: it's rare!
+
+As it's so rare, we reject $H_{0}$
+
+```{r}
+t.test( x, alternative = 'two.sided', mu = 52000 )
+```

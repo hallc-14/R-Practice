@@ -1,0 +1,130 @@
+---
+title: "Class Notes - Day 5"
+author: "Charlie Hall"
+date: "10/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+### Review - Sampling Dist of a Statistic
+
+In reality we only have *one* sample. 
+
+- Works for the sampling dist of the sample mean
+  - either normal pop or big n (n>25) required
+- Sampling dist of the sample *median*:
+  - if pop. is symmetric, then similar to that of sample mean
+  - need to know the population density to figure out
+- Sampling dist of the sample variance:
+  - asymptotically follows a scaled $\chi^{2}$ dist. if population is normal or $n$ is big.
+  
+### Bootstrap Distribution
+
+Recall that we tried to figure out how sample stat ($\overline{X},Median(X),S^{2}$, etc.) behaves by using the sampling distribution.
+
+With the development of computer simluations, we can achieve the same goal easily by using the bootstrap distribution (resampling *from* sample).
+
+#### How-To
+In real life, we typically only get **one** sample. 
+How can we find sample distribution? **Resample**
+
+Resample multiple times to obtain "bootstrap samples"
+
+**Bootstrap dist. has same spread as sample dist.**
+
+#### Summary
+
+Extremely convenient for us to construct sampling distribution by using the bootstrap dist.
+
+- the shape is the same while its center may be slightly off
+- and we know the true sampling dist. is centered exactly at the population parameter (e.g. $\mu$)
+
+This works nicely, esp. when $n$ is small or population dist. is unknown
+
+**Condition**: our sample must be a representative sample in comparison with the population (must accurately reflect shape of the pop.). I.e., use *random sampling*. 
+
+Example:
+```{r}
+library(nycflights13)
+( dist_data <- flights %>% select(distance) %>%
+    filter( !is.na(distance) ) )
+```
+
+Sampling Distribution of Sample Mean with $n = 25$:
+```{r}
+set.seed(25); samp_mean_25 <- rep(0,10000)
+for(i in 1:10000 ){
+  samp_mean_25[i] <- mean(sample(dist_data$distance, 25, replace = TRUE))
+}; hist( samp_mean_25, breaks = 15 ); sd(samp_mean_25)
+```
+
+Bootstrap Distribution:
+1. Take only one sample
+2. resample from this to create the bootstrap dist.
+```{r, eval = FALSE}
+set.seed(250); one_sample <- sample( dist_data$distance, 25, replace = TRUE )
+samp_mean_250 <- rep(0,10000)
+for(i in 1:10000){
+  samp_mean_250[i] <- mean(sample(one_sample, 25, replace = TRUE))
+  hist( samp_mean_250, breaks = 15); sd(samp_mean_250)
+}
+```
+
+```{r}
+library(boot)
+one_sample <- sample( dist_data$distance, 25, replace = TRUE )
+samplemean <- function(x, d) {
+  return(mean(x[d]))
+}
+(boot_obj <- boot(one_sample, samplemean, R = 10000))
+```
+
+Repeated Resampling (bootstrapping) is computationally intensive and was not feasible before computers were widely available
+
+**Bootstrapping implies sampling with replacement**
+
+Bootstrap is very practical without extensive study of mathematical approximation to sampling distributions
+
+### Confidence Interval
+
+**Confidence Interval**: typical way to present estimates as an interval range for a population parameter ($\mu, \sigma^{2}$, etc.).
+
+If the sampling dist. is hard to construct, then the bootstrap resampling is an effective way to construct confidence intervals.
+
+**CI from the sampling dist**
+
+- Assume only one sample with $n = 25$
+- With this we know that sampling dist. of sample mean will be approximately normal with mean $\mu$ and standard error $\sigma /\sqrt{n}$
+- This single sample produces $\overline{x}_{1}$ and $s$ as follows:
+```{r}
+mean(one_sample); sd(one_sample)
+```
+- since we do not know $\mu$ and $\sigma$, we assume the sampling dist will follow approximately the normal dist with mean $\overline{x}_{1}$ and st. error $s/\sqrt{25}$
+- recall that 2 std. errors from center covers 95%
+- we are 95% confident that the true $\mu$ is in the interval shown below:
+```{r}
+(CI_1 <- c(mean(one_sample) - 2* sd(one_sample)/sqrt(25), mean(one_sample) + 2* sd(one_sample)/sqrt(25)))
+```
+- we can also create as follows, but not feasible if we only have one sample
+- however, we *can* construct the bootstrap dist. with only one sample! Thus, the bootstrap CI is as follows:
+```{r}
+(CI_2 <- c(quantile(samp_mean_25, .025, quantile(samp_mean_25, .975))))
+```
+
+**Standard Deviation**: use when evaluating spread of dataset
+
+**Standard Error**: use when determining precision of sample mean or variability of mean distribution
+
+### Various Distributions
+
+- most dist. are *not* normal
+- **Skewedness**: when one tail is longer than the other
+  - right skewed - right tail is longer
+  - left skewed - left tail is longer
+- $t$-distribution: if we use $s$ instead of $\sigma$ for the sampling dist, then it gets slightly heavier tails than standard normal in reality. Thicker tails than a $z$-distribution
+   - dt(), pt(), qt(), rt()
+   - only **one** parameter: df (degrees of freedom) - this scales the thickness of the tails
