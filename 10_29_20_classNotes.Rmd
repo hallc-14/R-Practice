@@ -1,0 +1,171 @@
+---
+title: "Class Notes - Day 8"
+author: "Charles Hall"
+date: "10/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+### Multiple Testing
+
+Beware of **multiplicity** - mult comparisons, many variables, many models, can lead to false discovery
+
+- recall alpha (level of signif., 0.05) is the false discovery rate when no effect in reality
+- imagine we are predicting one outcome var. by 20 independent predictor vars.
+- assume there is no effect from these 20 predictor vars in reality
+- now we are trying to run NHST on each variable; repeat 20 times
+- for each nhst test, prob of true negative is 0.95 when alpha = 0.05
+  - false disc rate = alpha = 0.05 for each test
+- and 0.95 x 0.95 x 0.95 (to 20th power) = 0.36 is true negative rate for 20 nhsts
+- thus, **probability of having at least one false positive** is $1 - (0.95)^{20}$ or 0.64, when there is no effect from all 20 predictors
+- we call this **alpha inflation**
+
+This issue is related to
+
+- overfitting in data sci
+- fitting the model to the noise
+- more vars added, more models run, the greater the prob that something significant will emerge by chance
+- tortue the data long enough and it will confess
+- data dredging (fishing, snooping, butchery, p-hacking): in 2011, bayer could replicate only 14 out of 67 scientific studies
+- given sufficiently large and complex data, if you haven't found something interesting, you simply haven't looked long and hard enough
+
+More exmaples of this issue:
+
+- including lots of variables in models
+- checking for multiple pairwise differences across groups
+- looking at multiple subrgroup results
+- trying lots of statistical models
+- asking a number of diff questions
+
+How to mitigate the issue?
+
+- setup research questions **before** you see the data
+- **cross validate** by use of holdout sample
+- statistical adjustments
+  - Bonferroni correction (alpha per comparison = a/n where n = num of comparisons)
+  - Tukey's HSD (honest signif. difference) for comparing multiple group means
+- resampling and sim can provide random chance benchmarks
+- aware that the more you query, greater the role chance might play
+
+### Degrees of Freedom
+
+We have seen **degrees of freedom** as a parameter for $t$-distributions, $\chi^{2}$ distributions, $F$ distributions.
+
+- it refers to the number of values free to vary
+- it affects the shape of the dist
+- if you know the sample mean $\overline{x}$ = 21.1 for a sample of n = 10, there are n-1 = 9 degrees of freedom as $x_{10}$ is *not* free to vary after knowing $x_{1}$ thru $x_{9}$
+- $df = n-1$ for **most** cases
+- **not very important in data sci**
+  - $n$ and $n-1$ are very similar as sample size $n$ increases
+- **Dummy variables** for a categorical variable with $k$ levels
+  - similar concept to df
+  - for a categorical variable to describe sunday to saturday, we only need 6 dummy variables in prediction model
+  - once we know a day of the week is not mon through sat, it must be sunday
+  - thus, we only need $k-1$ dummy variables to represent the cat variable.
+  
+### ANOVA (Analysis of Variance)
+
+Very popular statistical procedure to test for a statistically significant diff among the groups (A/B/C/D tests)
+
+Math behind this test is not covered here but check elem. stat book for more details
+
+Recall that we learned 2-sample $t$ test, bootstrap dist, or permutation test to test:
+
+- $H_{0}: \mu_{A} = \mu_{B}$ vs. $H_{0}: \mu_{A} \neq \mu_{B}$
+
+We now want to test:
+
+- $H_{0}: \mu_{A} = \mu_{B} = \mu_{C}$ vs. $H_{a}$: at least one pair of group means are diff (i.e. $\mu_{A} \neq \mu_{B}$ or $\mu_{B} \neq \mu_{C}$, etc.)
+
+```{r}
+four_sessions <- read_csv("four_sessions.csv")
+head(four_sessions)
+
+four_sessions %>% ggplot( aes(Page, Time)) +
+  geom_boxplot( ) +
+  labs(y = 'Time (in seconds)') # less informative as n = 5 for each group
+```
+
+We use (1) **Permutation Test** and (2) traditional **ANOVA** for multiple pairwise comparisons
+
+Notice we have ${4 \choose 2} = 6$ pairwise comparisons
+
+```{r}
+choose(4,2)
+```
+
+The same idea with topic 23 **Resampling**
+
+- combine all data together in a single box
+- shuffle and draw out for resamples of five values each
+- record mean of each of four groups
+- record variance among four group means
+- repeat steps 2-4 many (1000?) times as the full total of permutations possible is too big
+
+```{r}
+library(lmPerm)
+aovp_output <- aovp(Time ~ Page, data = four_sessions)
+
+summary(aovp_output)
+```
+
+$p$-value indicates **suggestive but not conclusive$ ~ little evidence to support $H_{a}$.
+
+Assuming there is no effect of different pages, the probability of getting as extreme as our sample differences or more is just .0738 by chance.
+
+```{r}
+aov_output <- aov(Time~Page, data = four_sessions)
+
+summary(aov_output)
+```
+
+#### 2-Way ANOVA
+
+When we have 2 factors (2 categorical predictor vars)
+
+- identify the effects of 2 predictors
+- as well as the interaction between them
+
+This can be done in **regression** too
+
+In sum, ANOVA is a simple way of comparing multiple means between groups
+
+ANOVA is a part of the bigger picture of **regression**
+
+- a special, simple case of regression
+
+### $\chi^{2}$ Test
+
+$H_{0}$: count numbers are generated from same dist throughout diff groups
+
+$H_{a}$: count numbers are generated from diff dist throughout diff groups
+
+$\chi^{2}$ test works on count numbers
+
+Like before, we can apply permutation resampling or theoretical dist (chi squared dist) for the sampling dist
+
+```{r}
+click_rate <- read_csv("click_rates.csv")
+
+clicks <- matrix(click_rate$Rate, nrow = 3, ncol = 2, byrow = TRUE)
+dimnames(clicks) <- list(unique(click_rate$Headline),
+                         unique(click_rate$Click))
+clicks
+
+chisq.test(clicks, simulate.p.value = TRUE)
+chisq.test(clicks, simulate.p.value = FALSE)
+```
+
+### Fisher's Exact Test
+
+When count numbers are small
+
+With all possible permutations
+
+```{r}
+fisher.test(clicks)
+```
